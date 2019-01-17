@@ -1,0 +1,136 @@
+---
+title: "Service Propensity"
+author: "Rajat Shrivastav"
+date: "January 17, 2019"
+output: html_document
+---
+
+During this project we are going to have look into the concept of Logistic regression.We have the sample data set coming from Docsme.
+        On a broader perpespective, we are going to predict whether asset given in test file will opt for contract or not? 
+**Introduction** 
+
+We'll perform the following steps:
+
+- Reading the dataset
+- Cleaning and Missing value imputation
+- Data Exporation and Preprocessing for Logisitics
+- Logistics Regression Modelling
+- Output Validation
+- Gain Charts and Lift charts
+ 
+ **Visualizing the data**
+ 
+Starting off with reading the data for analysis,which is a CSV file.
+
+```{r setup,echo=FALSE,warning=FALSE}
+knitr::opts_knit$set(root.dir="C:\\Users\\1500202\\Documents\\NEW_R_Scripts")
+```
+
+
+tidyr-multi columns
+fast_dummies- to make dummy variables
+Rose- Removing class bias
+Information- Info value Imputation
+
+```{r}
+sp<- read.csv('train_service.csv');
+View(sp)
+```
+        
+Having a first look at the data.
+         
+```{r}
+str(sp); 
+```
+
+Now lets investigate for data.
+```{r}
+summary(sp)
+```
+
+Check for Class Bias
+```{r}
+table(sp$contract_flag)
+table(sp$warrnty_flg)
+```
+
+There is a considerate bais in the dataset.
+We will use the  rose function to remove bias and make it a well balanced data set.
+
+```{r}
+sp.rose <- ROSE( contract_flag ~ ., data = sp, seed = 1)$data
+View(sp.rose)
+```
+
+Now the proportions look quite good as can be seen.
+
+```{r}
+table(sp.rose$contract_flag)
+```
+
+Lets have a look at the Boxplots and crosstables configurations.
+
+
+
+Play with your data 
+**Removing the Missing values**
+
+Also We could have neglected the values as they are only 0.01 percent of the total dataSet.
+
+```{r}
+sp1<-subset(sp.rose,custmr_catgry_full!="")
+View(sp1)
+```
+
+Now we have 100% data at our end. Now lets make this data set ready for Logistics regression.
+**Generating Dummy Variables**
+
+```{r}
+work <- dummy_cols(sp1,select_columns = c("asset_stats","contract_flag","warrnty_flg","custmr_typ_full","modlty_full","srv_regn_full","divsn_full","custmr_catgry_full"));
+View(work)
+drops <- c("asset_stats","contract_flag","warrnty_flg","custmr_typ_full","modlty_full","srv_regn_full","divsn_full")
+work1 <- work[ , !(names(work) %in% drops)]
+View(work1)
+```
+
+```{r}
+str(work1)
+```
+
+**Now Let apply Logistics Regressions**
+
+```{r}
+dim(work1$asset_nbr);
+```
+```{r}
+model_logit <- glm(contract_flag ~.,family=binomial(link='logit'),data=work)
+summary(model_logit)
+#predicted <- plogis(predict(model_logit, testData)) 
+```
+**VIF**
+vif(logitMod)
+Like in case of linear regression, we should check for multicollinearity in the model. As seen below, all X variables in the model have VIF well below 4.
+
+
+**Misclassification Error**
+Misclassification error is the percentage mismatch of predcited vs actuals, irrespective of 1’s or 0’s. The lower the misclassification error, the better is your model.
+
+misClassError(testData$ABOVE50K, predicted, threshold = optCutOff)
+#=> 0.0899
+
+**ROC**
+Receiver Operating Characteristics Curve traces the percentage of true positives accurately predicted by a given logit model as the prediction probability cutoff is lowered from 1 to 0. For a good model, as the cutoff is lowered, it should mark more of actual 1’s as positives and lesser of actual 0’s as 1’s. So for a good model, the curve should rise steeply, indicating that the TPR (Y-Axis) increases faster than the FPR (X-Axis) as the cutoff score decreases. Greater the area under the ROC curve, better the predictive ability of the model.
+
+plotROC(testData$ABOVE50K, predicted)
+
+**Confusion Matrix**
+confusionMatrix(testData$ABOVE50K, predicted, threshold = optCutOff)
+
+# The columns are actuals, while rows are predicteds.
+#>       0    1
+#> 0 18918 1626
+#> 1   314  727
+
+http://r-statistics.co/Logistic-Regression-With-R.html
+https://datascienceplus.com/perform-logistic-regression-in-r/
+https://datascienceplus.com/perform-logistic-regression-in-r/
