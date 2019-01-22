@@ -1,0 +1,166 @@
+---
+title: "Service Propensity"
+author: "Rajat Shrivastav"
+date: "January 17, 2019"
+output: html_document
+---
+
+During this project we are going to have look into the concept of Logistic regression.We have the sample data set coming from Docsme.
+        On a broader perpespective, we are going to predict whether asset given in test file will opt for contract or not? 
+**Introduction** 
+
+We'll perform the following steps:
+
+- Reading the dataset
+- Cleaning and Missing value imputation
+- Data Exporation and Preprocessing for Logisitics
+- Logistics Regression Modelling
+- Output Validation
+- Gain Charts and Lift charts
+ 
+ **Visualizing the data**
+ 
+Starting off with reading the data for analysis,which is a CSV file.
+
+```{r setup,echo=FALSE,warning=FALSE}
+knitr::opts_knit$set(root.dir="C:\\Users\\1500202\\Documents\\NEW_R_Scripts")
+```
+
+
+tidyr-multi columns
+fast_dummies- to make dummy variables
+Rose- Removing class bias
+Information- Info value Imputation
+stringr- to get 2017
+car-Vif
+psych
+caret-confusion Matrix
+roc- Area under the curve
+
+```{r}
+sp<- read.csv('train_service.csv');
+test <-read.csv('test_service.csv')
+#View(sp)
+```
+        
+Having a first look at the data.
+         
+```{r}
+str(sp); 
+```
+
+Now lets investigate for data.
+```{r}
+summary(sp)
+```
+
+Check for Class Bias
+```{r}
+table(sp$contract_flag)
+table(sp$warrnty_flg)
+```
+
+There is a considerate bais in the dataset.
+We will use the  rose function to remove bias and make it a well balanced data set.
+
+```{r}
+sp.rose <- ROSE( contract_flag ~ ., data = sp, seed = 1)$data
+#View(sp.rose)
+```
+
+Now the proportions look quite good as can be seen.
+
+```{r}
+table(sp.rose$contract_flag)
+```
+
+Lets have a look at the Boxplots and crosstables configurations.
+
+
+
+
+
+
+Play with your data 
+**Removing the Missing values**
+
+Also We could have neglected the values as they are only 0.01 percent of the total dataSet.
+
+```{r}
+sp1<-subset(sp.rose,custmr_catgry_full!="")
+test<-subset(test,custmr_catgry_full!="")
+#View(sp1)
+str(sp1)
+```
+
+**Getting Warranty End month and Year** 
+
+Now lets split the warrnty_end_date variable to get Month an Year extracted
+
+```{r}
+sp1$Months <- substr(sp1$warrnty_end_dt,0,1)
+sp1$yrsp <- str_sub(sp1$warrnty_end_dt,-4,-1)
+test$Months <- substr(test$warrnty_end_dt,0,1)
+test$yrsp <- str_sub(test$warrnty_end_dt,-4,-1)
+```
+
+```{r}
+drops <- c("inputrowindex","warrnty_end_mnth","warrnty_end_dt","warrnty_start_dt","asset_nbr","install_dt")
+wok1 <- sp1[ , !(names(sp1) %in% drops)]
+str(wok1)
+#View(wok1)
+```
+
+
+```{r}
+wok1$contract_flag <- revalue(wok1$contract_flag, c("Y"=1,"N"=0));
+```
+
+Now Make all factor varaibles Numeric
+
+```{r}
+wo1k <- dummy_cols(sp1,select_columns = c("asset_stats","warrnty_flg","custmr_typ_full","modlty_full","srv_regn_full","divsn_full","custmr_catgry_full"));
+#View(work)
+```
+
+Now comes Modelling
+
+```{r}
+model_logit <- glm(contract_flag ~ .,family=binomial(link='logit'),data=wok1)
+summary(model_logit)
+#vif(model_logit)
+#predicted <- plogis(predict(model_logit,test))
+#View(predicted)
+```
+
+Using Annova to visualize the table of Devaince
+
+```{r}
+anova(model_logit, test="Chisq")
+```
+
+
+```{r}
+## Predicting Test Data
+result <- predict(model_logit,newdata=test,type='response')
+result <- ifelse(result > 0.5,1,0)
+View(result)
+```
+
+
+```{r}
+confusionMatrix(data=result, reference=wok1$contract_flag)
+```
+
+library(ROCR)
+predictions <- predict(model, newdata=test, type="response")
+ROCRpred <- prediction(predictions, test$Survived)
+ROCRperf <- performance(ROCRpred, measure = "tpr", x.measure = "fpr")
+
+```{r}
+predictions <- predict(model_logit, newdata=test, type="response")
+ROCRpred <- prediction(predictions, wok1$contract_flag)
+```
+
+```{r}
+write.csv(result,file='Problem1_500202')
